@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:iconly/iconly.dart';
+import 'package:loginsinup/CustomSlidersScreen.dart';
 import 'package:loginsinup/signup_page.dart';
+import 'package:loginsinup/slide_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,6 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   TextEditingController passwordController = TextEditingController();
   bool showPassword = false;
   bool rememberMe = false;
+  bool isLoading = false; // Added state for loading indicator
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   String errorMessage = ''; // Added state for error message
 
@@ -204,7 +209,63 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(30.0),
                       ),
                     ),
-                    onPressed: () async {},
+                    onPressed: () async {
+                      if (_formKey.currentState?.validate() ?? false) {
+                        try {
+                          setState(() {
+                            isLoading = true; // Set loading state
+                          });
+
+                          UserCredential userCredential = await FirebaseAuth
+                              .instance
+                              .signInWithEmailAndPassword(
+                            email: emailController.text,
+                            password: passwordController.text,
+                          );
+
+                          print(
+                              'Login successful: ${userCredential.user?.uid}');
+                          if (rememberMe) {
+                            // Save user credentials for auto-login
+                            await _secureStorage.write(
+                              key: 'userEmail',
+                              value: emailController.text,
+                            );
+                            // You may want to encrypt and securely store the password as well.
+                            // For simplicity, it's recommended to use a dedicated authentication solution like Firebase Auth.
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Login success!: ${emailController.text}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SlideScreen(),
+                            ),
+                          );
+                        } on FirebaseAuthException catch (e) {
+                          print('Login failed: ${e.message}');
+                          setState(() {
+                            errorMessage = 'Incorrect email or password';
+                          });
+                          // Show error message using SnackBar
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Login failed: ${errorMessage}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        } finally {
+                          setState(() {
+                            isLoading = false; // Reset loading state
+                          });
+                        }
+                      }
+                    },
                     child: const Text('Login'),
                   ),
                   const SizedBox(
@@ -234,6 +295,15 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+          if (isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
       ),
     );

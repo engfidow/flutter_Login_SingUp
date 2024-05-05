@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -88,6 +91,90 @@ class _RegScreenState extends State<RegScreen> {
         );
       },
     );
+  }
+
+  Future<bool> isUsernameTaken(String username) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('username', isEqualTo: username)
+        .get();
+    return querySnapshot.docs.isNotEmpty;
+  }
+
+  Future<bool> isEmailTaken(String email) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .get();
+    return querySnapshot.docs.isNotEmpty;
+  }
+
+  Future<void> registerUser() async {
+    try {
+      setState(() {
+        isRegistering = true;
+      });
+
+      if (!RegExp(r'^[a-zA-Z]+$').hasMatch(usernameController.text)) {
+        showErrorDialog('Username must contain only letters.');
+        return;
+      }
+
+      if (await isUsernameTaken(usernameController.text)) {
+        showErrorDialog('Username is already taken.');
+        return;
+      }
+
+      if (await isEmailTaken(emailController.text)) {
+        showErrorDialog('Email is already in use.');
+        return;
+      }
+
+      if (passwordController.text != ConpasswordController.text) {
+        showErrorDialog('Passwords do not match.');
+        return;
+      }
+
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text,
+        password: passwordController.text,
+      );
+
+      String uid = userCredential.user!.uid;
+      String imageUrl =
+          "https://st3.depositphotos.com/9998432/13335/v/450/depositphotos_133352156-stock-illustration-default-placeholder-profile-icon.jpg";
+
+      if (_image != null) {
+        Reference storageReference =
+            FirebaseStorage.instance.ref().child('user_images/$uid.jpg');
+        await storageReference.putFile(_image!);
+        imageUrl = await storageReference.getDownloadURL();
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'username': usernameController.text,
+        'email': emailController.text,
+        'image_url': imageUrl,
+      });
+
+      showSuccessDialog();
+      clearFields();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      showErrorDialog(e.message as String);
+    } finally {
+      setState(() {
+        isRegistering = false;
+      });
+    }
   }
 
   @override
@@ -418,7 +505,11 @@ class _RegScreenState extends State<RegScreen> {
                                 30.0), // Adjust radius as needed
                           ),
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            registerUser();
+                          }
+                        },
                         child: const Text('Create Account'),
                       ),
                       const SizedBox(
