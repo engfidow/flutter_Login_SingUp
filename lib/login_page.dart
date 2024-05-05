@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:iconly/iconly.dart';
-import 'package:loginsinup/CustomSlidersScreen.dart';
+
 import 'package:loginsinup/signup_page.dart';
 import 'package:loginsinup/slide_screen.dart';
 

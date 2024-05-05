@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:loginsinup/CustomSlidersScreen.dart';
+
 import 'package:loginsinup/login_page.dart';
 import 'package:loginsinup/slide_screen.dart';
 
